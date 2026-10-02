@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="km">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KCPH Waste Segregation Record</title>
+<meta name="theme-color" content="#1b3f8b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="KCPH Waste">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;600;700&family=Moul&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --paper:#f6f8f6; --card:#ffffff; --ink:#15221d; --muted:#5d6b65; --line:#d9e0dc;
+  --navy:#1b3f8b; --green:#0c6b58; --green-dark:#084c3f; --green-soft:#e3f1ec;
+  --amber:#b7791f; --amber-soft:#fdf3dc; --red:#b3261e; --red-soft:#fbe9e7;
+  --r:10px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Kantumruy Pro","Noto Sans Khmer","Khmer OS Battambang",system-ui,sans-serif;
+  font-size:16px;line-height:1.6}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid #f0b429;outline-offset:2px}
+.wrap{max-width:880px;margin:0 auto;padding:0 14px}
+
+header.top{background:var(--navy);color:#fff}
+header.top img{width:44px;height:44px;flex:none;background:#fff;border-radius:50%;padding:1px}
+.login img{display:block;width:120px;height:120px;margin:0 auto 10px}
+body.busy .btn,body.busy .seg button{opacity:.55;pointer-events:none}
+body.busy{cursor:progress}
+header.top .wrap{display:flex;align-items:center;gap:10px;padding-top:10px;padding-bottom:10px}
+header.top h1{font-size:1.05rem;font-weight:600;margin:0;flex:1;line-height:1.35}
+header.top small{display:block;font-weight:400;opacity:.8;font-size:.8rem}
+.ghost{background:transparent;border:1px solid rgba(255,255,255,.45);color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:.85rem;white-space:nowrap}
+
+nav.tabs{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+nav.tabs .wrap{display:flex;gap:2px;overflow-x:auto}
+nav.tabs button{border:0;background:none;padding:12px 12px 10px;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap;font-weight:500}
+nav.tabs button[aria-current=true]{color:var(--green-dark);border-bottom-color:var(--green)}
+
+main{padding:16px 0 70px}
+h2{font-size:1.15rem;margin:0 0 12px;font-weight:600}
+h3{font-size:1rem;margin:22px 0 8px;font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.card + .card{margin-top:10px}
+.muted{color:var(--muted);font-size:.88rem}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+label.f{display:block;font-weight:500;margin:14px 0 4px}
+input[type=text],input[type=password],input[type=number],input[type=datetime-local],input[type=month],select,textarea{
+  width:100%;padding:10px;border:1px solid #b9c4be;border-radius:8px;background:#fff;min-height:44px}
+textarea{min-height:70px;resize:vertical}
+
+/* weight rows: the bin colour strip identifies each category */
+.w{display:grid;grid-template-columns:8px 1fr 104px 22px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.w i{display:block;width:8px;height:38px;border-radius:4px}
+.w input{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.w-total{display:flex;justify-content:space-between;padding:10px 0 0;font-weight:600}
+
+.chk{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.seg{display:flex;flex:none}
+.seg button{border:1px solid #b9c4be;background:#fff;padding:8px 14px;min-width:64px;min-height:44px;cursor:pointer}
+.seg button:first-child{border-radius:8px 0 0 8px}
+.seg button:last-child{border-radius:0 8px 8px 0;border-left:0}
+.seg button.on.y{background:var(--green);border-color:var(--green);color:#fff}
+.seg button.on.n{background:var(--red);border-color:var(--red);color:#fff}
+
+.btn{background:var(--green);color:#fff;border:0;border-radius:8px;padding:11px 16px;cursor:pointer;font-weight:600;min-height:44px}
+.btn:hover{background:var(--green-dark)}
+.btn.line{background:#fff;color:var(--green-dark);border:1px solid var(--green)}
+.btn.warn{background:#fff;color:var(--red);border:1px solid var(--red)}
+.btn.full{width:100%;margin-top:18px}
+
+.pill{display:inline-block;padding:1px 9px;border-radius:99px;font-size:.8rem;font-weight:600}
+.pill.submitted{background:var(--amber-soft);color:var(--amber)}
+.pill.approved{background:var(--green-soft);color:var(--green-dark)}
+.pill.returned{background:var(--red-soft);color:var(--red)}
+.entry-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.kgs{display:flex;flex-wrap:wrap;gap:4px 14px;margin:8px 0;font-variant-numeric:tabular-nums}
+.kgs span{display:inline-flex;align-items:center;gap:5px;font-size:.9rem}
+.dot{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
+.note{background:var(--red-soft);border-radius:8px;padding:8px 10px;margin-top:8px;font-size:.9rem}
+
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:640px){.tiles{grid-template-columns:repeat(4,1fr)}}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.tile b{display:block;font-size:1.5rem;line-height:1.2;font-variant-numeric:tabular-nums}
+.tile span{font-size:.85rem;color:var(--muted)}
+
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+th{font-weight:600;background:#eef2ef}
+tfoot td{font-weight:700;border-top:2px solid var(--ink)}
+.bar{display:flex;height:12px;min-width:90px;border-radius:3px;overflow:hidden;background:#eef2ef}
+.bar i{display:block;height:100%}
+.low{color:var(--red);font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin:8px 0 0;font-size:.85rem}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+
+.demo{background:var(--amber-soft);border-bottom:1px solid #ecd9a6;font-size:.88rem;padding:6px 0}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;max-width:92vw;z-index:20}
+.sign{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:46px;text-align:center;font-size:.9rem}
+.sign div{border-top:1px solid var(--ink);padding-top:6px}
+.login{max-width:420px;margin:28px auto}
+
+/* monthly report (always Khmer) */
+.rep{font-size:.92rem}
+.rep .nat{text-align:center;font-family:"Moul","Khmer OS Muol Light","Kantumruy Pro",serif;line-height:1.9}
+.rep .inst{display:flex;align-items:center;gap:10px;margin-top:6px}
+.rep .inst img{width:64px;height:64px;flex:none}
+.rep .inst div{font-family:"Moul","Khmer OS Muol Light","Kantumruy Pro",serif;font-size:.85rem;line-height:1.9}
+.rep .ttl{text-align:center;margin:14px 0 4px}
+.rep .ttl b{display:block;font-family:"Moul","Khmer OS Muol Light","Kantumruy Pro",serif;font-weight:400;font-size:1.05rem;line-height:1.9}
+.rep h3{margin:20px 0 6px;font-size:1rem}
+.rep table{border:1px solid #9aa5a0}
+.rep th,.rep td{border:1px solid #9aa5a0;padding:5px 7px}
+.rep th{white-space:normal;vertical-align:middle;text-align:center}
+.rep td:first-child{min-width:150px}
+.rep .kv td:last-child{white-space:normal}
+.rep .plan td{height:38px;text-align:left}
+.rep ul{margin:4px 0;padding-left:22px}
+.rep .date{text-align:right;margin-top:26px}
+.rep .sign{margin-top:14px}
+.rep .sign div{border-top:0;padding-top:0;min-height:110px}
+.rep section{break-inside:avoid-page}
+
+@page{size:A4;margin:14mm}
+@media print{
+  .rep{font-size:10pt}
+  .rep table{font-size:9pt}
+  .rep .scroll{overflow:visible}
+  .rep tr{break-inside:avoid}
+  .rep h3{break-after:avoid}
+  header.top,nav.tabs,.noprint,.toast,.demo{display:none!important}
+  body{background:#fff;font-size:11pt}
+  main{padding:0}
+  .card{border:0;padding:0}
+  th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ============ CONFIG ============ */
+// Paste your Apps Script /exec URL here. While it is empty the app runs in demo mode with sample data.
+const API_URL = 'https://script.google.com/macros/s/AKfycbx1SEX7OhxYqXyFaojnaZIe6Tj4qOyaDfKZ8JO5iv9h71sbMG6n0TK5l4Gb7D_qL2Q/exec';
+
+const WARDS = ['OPD-Emergency','Operation Theater','General Medicine A','General Medicine B','ICU','Surgery A','Surgery B','NICU','Eye Unit','Gynecology','Maternity','Pediatrics','Laboratory-blood bank'];
+const WARD_KM = {
+  'OPD-Emergency':'ផ្នែកពិគ្រោះជំងឺក្រៅ-សង្គ្រោះបន្ទាន់', 'Operation Theater':'បន្ទប់វះកាត់',
+  'General Medicine A':'ផ្នែកជំងឺទូទៅ ក', 'General Medicine B':'ផ្នែកជំងឺទូទៅ ខ', 'ICU':'ផ្នែកថែទាំជំងឺធ្ងន់ (ICU)',
+  'Surgery A':'ផ្នែកសល្យសាស្ត្រ ក', 'Surgery B':'ផ្នែកសល្យសាស្ត្រ ខ', 'NICU':'ផ្នែកថែទាំទារកធ្ងន់ (NICU)',
+  'Eye Unit':'ផ្នែកចក្ខុរោគ', 'Gynecology':'ផ្នែករោគស្ត្រី', 'Maternity':'ផ្នែកសម្ភព', 'Pediatrics':'ផ្នែកកុមារ',
+  'Laboratory-blood bank':'មន្ទីរពិសោធន៍-ធនាគារឈាម'
+};
+const MONTH_KM = ['មករា','កុម្ភៈ','មីនា','មេសា','ឧសភា','មិថុនា','កក្កដា','សីហា','កញ្ញា','តុលា','វិច្ឆិកា','ធ្នូ'];
+// Wording of the report letterhead. Edit here if your official wording differs.
+const REPORT_HEAD = {
+  nation:'ព្រះរាជាណាចក្រកម្ពុជា', motto:'ជាតិ សាសនា ព្រះមហាក្សត្រ',
+  inst:['មន្ទីរសុខាភិបាលនៃរដ្ឋបាលខេត្តកំពង់ឆ្នាំង','មន្ទីរពេទ្យខេត្តកំពង់ឆ្នាំង','គណៈកម្មការគ្រប់គ្រងសំណល់'],
+  title:'របាយការណ៍ប្រចាំខែ ស្តីពីការញែក និងការគ្រប់គ្រងសំណល់វេជ្ជសាស្ត្រ', place:'កំពង់ឆ្នាំង',
+  sign:[['បានឃើញ និងឯកភាព','ប្រធានមន្ទីរពេទ្យ'],['បានពិនិត្យ','ប្រធានគណៈកម្មការគ្រប់គ្រងសំណល់'],['អ្នករៀបចំរបាយការណ៍','']]
+};
+const CATS = [
+  {k:'general',      en:'General waste',                    km:'សំណល់ទូទៅ',        c:'#5b6660'},
+  {k:'infectious',   en:'Infectious waste',                 km:'សំណល់ឆ្លងរោគ',     c:'#e0a800'},
+  {k:'pathological', en:'Pathological waste',               km:'សំណល់សរីរាង្គ',     c:'#c0392b'},
+  {k:'sharps',       en:'Sharps',                           km:'សំណល់មុតស្រួច',     c:'#e8730c'},
+  {k:'pharma',       en:'Pharmaceutical or chemical waste', km:'សំណល់ឱសថ ឬគីមី',  c:'#7a5230'}
+];
+const CHECKS = [
+  {k:'chkColour', en:'Correct bin and bag colour for each category', km:'ធុង និងថង់ត្រូវពណ៌តាមប្រភេទសំណល់'},
+  {k:'chkNoMix',  en:'No mixing between categories',                 km:'គ្មានការលាយសំណល់ខុសប្រភេទ'},
+  {k:'chkSharps', en:'Safety box not over three-quarters full',      km:'ប្រអប់សុវត្ថិភាពមិនពេញលើស ៣/៤'}
+];
+const ERRS = [
+  {k:'colour',     en:'Wrong bag or bin colour',               km:'ខុសពណ៌ថង់ ឬធុង'},
+  {k:'inf_in_gen', en:'Infectious waste in general bin',       km:'សំណល់ឆ្លងរោគក្នុងធុងសំណល់ទូទៅ'},
+  {k:'gen_in_inf', en:'General waste in infectious bin',       km:'សំណល់ទូទៅក្នុងធុងសំណល់ឆ្លងរោគ'},
+  {k:'sharps_out', en:'Sharps outside the safety box',         km:'សំណល់មុតស្រួចនៅក្រៅប្រអប់សុវត្ថិភាព'},
+  {k:'overfill',   en:'Safety box over three-quarters full',   km:'ប្រអប់សុវត្ថិភាពពេញលើស ៣/៤'},
+  {k:'other',      en:'Other',                                 km:'ផ្សេងៗ'}
+];
+const T = {
+  app:['Waste segregation record','កំណត់ត្រាការញែកសំណល់'],
+  hosp:['Kampong Chhnang Provincial Hospital','មន្ទីរពេទ្យខេត្តកំពង់ឆ្នាំង'],
+  signin:['Sign in','ចូលប្រើ'], name:['Your name','ឈ្មោះរបស់អ្នក'], pin:['PIN','លេខសម្ងាត់'], signout:['Sign out','ចាកចេញ'],
+  demo:['Demo mode with sample data. Every PIN is 1234. Nothing is saved.','របៀបសាកល្បង ប្រើទិន្នន័យគំរូ។ លេខសម្ងាត់ទាំងអស់គឺ 1234។ ទិន្នន័យមិនត្រូវបានរក្សាទុកទេ។'],
+  t_entry:['New record','កត់ត្រាថ្មី'], t_entries:['Records','បញ្ជីកំណត់ត្រា'], t_dash:['Dashboard','ផ្ទាំងសូចនាករ'], t_report:['Monthly report','របាយការណ៍ប្រចាំខែ'],
+  role_nurse:['Ward nurse','គិលានុបដ្ឋាកផ្នែក'], role_link:['Ward IPC link','អ្នកទទួលបន្ទុក IPC ផ្នែក'], role_admin:['IPC team and Technical Office','ក្រុម IPC និងការិយាល័យបច្ចេកទេស'], role_viewer:['Hospital management','គណៈគ្រប់គ្រងមន្ទីរពេទ្យ'],
+  datetime:['Date and time of collection','កាលបរិច្ឆេទ និងម៉ោងប្រមូល'], ward:['Ward','ផ្នែក'], recorder:['Recorded by','អ្នកកត់ត្រា'],
+  weights:['Weight by category (kg)','ទម្ងន់តាមប្រភេទ (គ.ក្រ)'], zero:['Enter 0 if there is none.','បញ្ចូល 0 បើគ្មាន។'], total:['Total','សរុប'],
+  quality:['Segregation checks','ការត្រួតពិនិត្យការញែកសំណល់'], yes:['Yes','បាទ/ចាស'], no:['No','ទេ'],
+  err:['Type of segregation error','ប្រភេទកំហុសនៃការញែក'], choose:['Choose','ជ្រើសរើស'],
+  remarks:['Remarks (optional)','កំណត់សម្គាល់ (មិនចាំបាច់)'],
+  save:['Save record','រក្សាទុកកំណត់ត្រា'], saved:['Record saved','បានរក្សាទុកកំណត់ត្រា'], cancel:['Cancel editing','បោះបង់ការកែ'], editing:['Editing a returned or pending record','កំពុងកែកំណត់ត្រា'],
+  v_weights:['Enter a weight for every category (0 if none).','សូមបញ្ចូលទម្ងន់គ្រប់ប្រភេទ (0 បើគ្មាន)។'],
+  v_checks:['Answer all three segregation checks.','សូមឆ្លើយការត្រួតពិនិត្យទាំងបី។'],
+  v_err:['Choose the type of segregation error.','សូមជ្រើសរើសប្រភេទកំហុស។'],
+  v_date:['Enter the date and time.','សូមបញ្ចូលកាលបរិច្ឆេទ និងម៉ោង។'],
+  v_note:['Write a note before returning a record.','សូមសរសេរមូលហេតុមុនពេលត្រឡប់កំណត់ត្រា។'],
+  submitted:['Awaiting approval','រង់ចាំការអនុម័ត'], approved:['Approved','បានអនុម័ត'], returned:['Returned for correction','ត្រឡប់ឲ្យកែ'],
+  approve:['Approve','អនុម័ត'], ret:['Return for correction','ត្រឡប់ឲ្យកែ'], edit:['Edit','កែ'], note:['Note to the nurse','កំណត់ចំណាំជូនគិលានុបដ្ឋាក'],
+  reviewedBy:['Reviewed by','ពិនិត្យដោយ'],
+  empty:['No records for this month yet.','មិនទាន់មានកំណត់ត្រាសម្រាប់ខែនេះទេ។'],
+  month:['Month','ខែ'], all:['All','ទាំងអស់'],
+  d_total:['Total waste (kg)','សំណល់សរុប (គ.ក្រ)'], d_comp:['Segregation compliance','អត្រាអនុលោមការញែក'], d_pending:['Awaiting approval','រង់ចាំការអនុម័ត'], d_today:['Wards reporting today','ផ្នែកដែលបានរាយការណ៍ថ្ងៃនេះ'], d_rounds:['Collection rounds','ចំនួនជុំប្រមូល'],
+  d_byward:['Waste and compliance by ward','សំណល់ និងអត្រាអនុលោមតាមផ្នែក'], rounds:['Rounds','ជុំ'], kg:['kg','គ.ក្រ'], comp:['Compliance','អនុលោម'],
+  d_errors:['Most common segregation errors','កំហុសនៃការញែកដែលកើតញឹកញាប់'], d_noerr:['No segregation errors recorded.','គ្មានកំហុសនៃការញែកត្រូវបានកត់ត្រា។'],
+  d_scope:['Includes approved and pending records. Returned records are excluded until corrected.','រាប់បញ្ចូលកំណត់ត្រាដែលបានអនុម័ត និងកំពុងរង់ចាំ។ កំណត់ត្រាដែលត្រឡប់ឲ្យកែមិនត្រូវបានរាប់ទេ។'],
+  r_title:['Monthly waste segregation report','របាយការណ៍ប្រចាំខែស្តីពីការញែកសំណល់'], r_scope:['Approved records only.','រាប់តែកំណត់ត្រាដែលបានអនុម័ត។'],
+  xlsx:['Download Excel','ទាញយក Excel'], print:['Print or save as PDF','បោះពុម្ព ឬរក្សាទុកជា PDF'], allwards:['All wards','គ្រប់ផ្នែក'],
+  s_prep:['Prepared by','រៀបចំដោយ'], s_rev:['Reviewed by','ពិនិត្យដោយ'], s_app:['Approved by','អនុម័តដោយ'],
+  loading:['Loading','កំពុងដំណើរការ'],
+  retry:['Try again','ព្យាយាមម្តងទៀត'],
+  e_net:['Cannot reach the server. Check the internet connection and try again.','មិនអាចភ្ជាប់ទៅម៉ាស៊ីនមេបានទេ។ សូមពិនិត្យអ៊ីនធឺណិត រួចព្យាយាមម្តងទៀត។'],
+  e_users:['The name list could not be loaded.','មិនអាចទាញយកបញ្ជីឈ្មោះបានទេ។'],
+  e_pin:['Wrong name or PIN','ឈ្មោះ ឬលេខសម្ងាត់មិនត្រឹមត្រូវ'],
+  e_dup:['This round is already recorded','ជុំប្រមូលនេះបានកត់ត្រារួចហើយ'],
+  e_lock:['Too many wrong attempts. Wait 10 minutes.','ព្យាយាមខុសច្រើនដងពេក។ សូមរង់ចាំ ១០ នាទី។'],
+  e_acct:['This account is not set up correctly. Tell the Technical Office.','គណនីនេះមិនទាន់កំណត់ត្រឹមត្រូវទេ។ សូមប្រាប់ការិយាល័យបច្ចេកទេស។'],
+  e_xlsx:['The Excel tool did not load. Check the internet connection and reload the page.','ឧបករណ៍ Excel មិនដំណើរការទេ។ សូមពិនិត្យអ៊ីនធឺណិត រួចបើកទំព័រឡើងវិញ។'],
+  v_future:['The date and time cannot be in the future.','កាលបរិច្ឆេទ និងម៉ោងមិនអាចនៅអនាគតបានទេ។'],
+  v_max:['A weight is over 999 kg. Check the numbers.','ទម្ងន់លើស 999 គ.ក្រ។ សូមពិនិត្យលេខឡើងវិញ។']
+};
+
+const LOGO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAMAAAC8EZcfAAADAFBMVEXRMDdgmjymJTGhx5PMRUWqLjmsGSixT1CrV2qMpmXSFRvSPEHL4K0nXFPKNDrMLDTwGWnknJ8ZfcAdgL9RaD7OPEHo8NtAblpimW2qJDC6zuDQQkc7MF4A//9/Hx9/AH9HToF9tIO7kpbUPEHSREgAf38fgUx/HzR/f3+6PkSAtD6qqqrYQkcAAAD3+vwjNWwaV5YZSIYZN3IcQnzm6/FpqU6wJDHY5/BNmEwHRirQKC8nVpAVKmV2s06qGygVVjUxiEtYo07sNDcbY6QqRHqXGikiLmSGulHQ2eQkSoS1x9EoaaUodbFRZ5KTJDZwh6oteEYBPCOqt8vJ1dVKiEj/AAASI1yLmLPnKS1Md6avOEcwY5kXXaDVMzqNqcXa9P0xZ04pZzupyWi21G1PKlFylLeVwlixRlQUaUNKWIV/AADMyNQaeLkHGVU7kk7tR0jPOUN0mIluKUhqd5kANh2VBhO+Pj4bdEeRNk2qAFXSp6+RprJKSHbpx8qqCRdKeWasEhzKGyPV5dPt19kYgcKQt2xOOWaZs83OiI81dD2YtauxWWRDd01Vg29omVAYYzu0Z3LMcnpxNVdvSG7MR1AkW0OIp5mrx7FXhbCOK0POaHDWs7oiWzd/AD+VHS6PR2X/VVVki3rGWmTTk5ruVVZPMVt5IjylrcI1K1uaER2yIi3OmqPkt7oEPYKZwmW41K/RusRPcp2Ci6evMj3NU1uVHS2ZHS2bHCujyF3KeoNkZ459oZOwJjLFFh1EUn2UHS6vJzOwJTG1JC+jvLK80s6SJDGtIy+uUVzRNzvTNzzWNzzUNTtvqWqrVFSnyZFyVntrfaGYIjCMu4mqJzS7h5LC2nXlqq3p3OKXHC2dIS6cMT23d4K+mKXcNzztPUDi7dcdYJ42hzONU3GEq1qqAADiNTn/f3+iqb3WMzlRlztwh5J1ncF9osOYQlq/AD/FKDBDbaFwXIS90ODSPELF267/AFX/Pz/hhovmvsEADEppPGJijFJ9snGmLUHFKzUAAAAhShEeAAAA/3RSTlOh/2P/GxzeHP3//5z//xZzDP////9d////o/+S/wEIAv///8liAv/+CCX/A8gA//7+/v/////9/////f7+//7////8//79/v///v///v7+////////Af///v7+///8/////////f///v/+Av///////v/9////BP/+A////v////////////7///////////////39/v/////+////BC79A//////9/v/8/8v/////////////d67J///9/1P//1Ytd67//xST/y1VdZH/BP/9/yn/Fv////+Pkv///6z//////P8DygL/xv/////+BMf+/f8v/wME/////v///it/7nz0AAAtl0lEQVR42r2dB3wU57nu5Ti93ZOc5Jwkp59z+736dnc0W2bbSLArjVZabVVHZVWRZGFQMSBRJAggUSSKqMJgIDbG9GYDjrET995jx3bcEztOnH7Sc3/neb9vZnZXEhhzkvvZFG2Z+c/z9pnZJSf3qlfnDb8Wf/noLx9+5NHvvfvuLHN9/93vPfrIww99VDz/6xs6r34vOVf5vr+6oZz++PzDj3zv+yZX3Xy+6tKgOY88/Hl6Xbl4+f8vwPIbOOPDjwq2+e2ffPPJC+Fwdam+qsPhC0+++cmJ+Trlw39Fr786xg8PWH4T7eiXj3xfsL154WelpV+fcZWWhi+82c4pv//IL823/mUBO0m8X375+wIuXHodQP5a6FYy21wl4pG/xpPXlYaf5JDff+Shq5HxwwH+4N9zcz/x5e8R3d4LBPfXmWBz0oRz5swxQK8jyAtvEmPOwwibm/7qLwb4Axz9Rx+lYPgk0V2HvQPCOmeOjpO9+MNWQQkpS8N7OSNkLP/BXwSwHOr9ksRr/7mgAxvWnCnazc7SE4hYs2eX8rf8vB1v/x4Q/738zw5YflNu7kMcL1z6dW5XTie0mzObOGaLv1vFT3NmE9js1wWizggZdRWvOFyuEPAmrl7VrL3h675o0FkFFBFZS3704xJAzKl3ys5Wa8maNT8q5Yj0CuPFZOuvf/Fnb9YJFW/6MwLC+R7/DA4deGRaoZ2x39I1JXNKZcZYyZwSa4jFnaykFD+x6jlzqut/VGLNXCTjdSV766pmPfr53PLyPxcgMst/hYN/kvBKXhe7EparDe2wVbMdthDbUVqPaLaGnDYPa61m1SUsZPsRMJ0l1tZMSMhIiDjaR/iG/wyAkO+jcL4JjmfaFvKUWq0lEMrG6q1sjY0HLAGWsB07mNXmDNWyX5TsYPV43oZQnmMyEmIY4fKZh65ExJwPlu8fHplVVfdkqWFc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';
+
+/* ============ STATE ============ */
+const pad = n => String(n).padStart(2,'0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const nowLocal = () => { const d=new Date(); return `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const S = { lang:'km', user:null, cred:null, users:[], tab:'', month:nowLocal().slice(0,7), entries:[], prev:[], draft:null, repWard:'', statusFilter:'', msg:'' };
+const REMEMBER = 'kcph_waste_user';
+const TABS = { nurse:['entry','entries','dash'], link:['entry','entries','dash','report'], admin:['entries','dash','report','entry'], viewer:['dash','report'] };
+
+const t = k => T[k] ? T[k][S.lang==='km'?1:0] : String(k||'');
+const L = o => S.lang==='km' ? o.km : o.en;
+const both = o => `${o.en} / ${o.km}`;
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const f1 = n => (Math.round(n*10)/10).toFixed(1);
+const $ = s => document.querySelector(s);
+const isOk = e => CHECKS.every(c => e[c.k]===true);
+const sumKg = e => CATS.reduce((a,c)=>a+(+e[c.k]||0),0);
+
+/* ============ API ============ */
+async function api(action, params={}) {
+  if (!API_URL) return demo(action, params);
+  const q = new URLSearchParams({action, ...(S.cred||{}), ...params, _:Date.now()});
+  let j;
+  try {
+    const r = await fetch(API_URL + '?' + q.toString(), {redirect:'follow'});
+    j = await r.json();
+  } catch (err) { throw new Error(t('e_net')); }
+  if (!j || !j.ok) throw new Error(serverMsg(j && j.error));
+  return j.data;
+}
+
+function serverMsg(m) {
+  m = String(m || 'Server error');
+  const map = {'Wrong name or PIN':'e_pin', 'This round is already recorded':'e_dup', 'Too many wrong attempts. Wait 10 minutes.':'e_lock'};
+  if (map[m]) return t(map[m]);
+  if (/unknown role|no ward/i.test(m)) return t('e_acct');
+  return m;
+}
+
+/* ---- demo mode: same rules as Code.gs, data kept in memory only ---- */
+let DB = null;
+function seedDB() {
+  let s = 7; const rnd = () => (s = (s*16807) % 2147483647) / 2147483647;
+  const r1 = x => Math.round(x*10)/10;
+  const users = [{id:'admin',name:'Technical Office',role:'admin',ward:''},{id:'mgmt',name:'Hospital management',role:'viewer',ward:''}];
+  WARDS.forEach((w,i) => { users.push({id:'n'+i,name:'Nurse, '+w,role:'nurse',ward:w}); users.push({id:'l'+i,name:'IPC link, '+w,role:'link',ward:w}); });
+  const entries = []; const now = new Date(); const nowS = nowLocal(); let n = 0;
+  const errOf = ['colour','inf_in_gen','overfill'];
+  for (let d = new Date(now.getFullYear(), now.getMonth()-1, 1); d <= now; d.setDate(d.getDate()+1)) {
+    WARDS.forEach((w,wi) => ['07:30','15:30'].forEach(tm => {
+      const dt = `${ymd(d)}T${tm}`;
+      if (dt > nowS || rnd() < 0.07) return;
+      const sc = 0.6 + ((wi*37)%10)/10, bad = rnd() > (0.78 + ((wi*13)%20)/100), bi = Math.floor(rnd()*3);
+      const age = (now - d)/864e5;
+      const status = age > 3 ? 'approved' : (rnd()<0.12 ? 'returned' : (rnd()<0.45 ? 'approved' : 'submitted'));
+      entries.push({ id:'d'+(++n), datetime:dt, ward:w, recorder:'Nurse, '+w,
+        general:r1(1.5+rnd()*5*sc), infectious:r1(0.8+rnd()*3.5*sc), pathological:r1(rnd()<0.6?0:rnd()*1.5*sc), sharps:r1(0.1+rnd()*0.8*sc), pharma:r1(rnd()<0.7?0:rnd()*0.6),
+        chkColour:!(bad&&bi===0), chkNoMix:!(bad&&bi===1), chkSharps:!(bad&&bi===2), errorType: bad?errOf[bi]:'', remarks:'',
+        status, reviewedBy: status==='submitted'?'':'IPC link, '+w, reviewedAt: status==='submitted'?'':dt,
+        reviewNote: status==='returned'?'Please re-weigh the infectious waste.':'', createdBy:'n'+wi });
+    }));
+  }
+  return {users, entries};
+}
+function demo(action, p) {
+  DB = DB || seedDB();
+  if (action==='users') return DB.users;
+  if (action==='login') {
+    const u = DB.users.find(x => x.id===S.cred.id);
+    if (!u || S.cred.pin!=='1234') throw new Error('Wrong name or PIN');
+    return u;
+  }
+  const u = S.user;
+  if (action==='list') return DB.entries.filter(e => e.datetime>=p.from && e.datetime<=p.to && (!u.ward || e.ward===u.ward)).map(e=>({...e}));
+  if (action==='save') {
+    const d = JSON.parse(p.data);
+    const o = {...d, ward: u.role==='admin'?d.ward:u.ward, status:'submitted', reviewedBy:'', reviewedAt:''};
+    if (d.id) {
+      const ex = DB.entries.find(e=>e.id===d.id);
+      if (ex.status==='approved') throw new Error('Approved entries cannot be edited');
+      Object.assign(ex, o, {recorder:ex.recorder, createdBy:ex.createdBy});
+      return ex;
+    }
+    if (DB.entries.some(e=>e.ward===o.ward && e.datetime===o.datetime && e.createdBy===u.id)) throw new Error(t('e_dup'));
+    Object.assign(o, {id:'x'+Date.now(), recorder:u.name, createdBy:u.id, reviewNote:''});
+    DB.entries.push(o); return o;
+  }
+  if (action==='review') {
+    const ex = DB.entries.find(e=>e.id===p.entryId);
+    Object.assign(ex, {status:p.status, reviewedBy:u.name, reviewedAt:nowLocal(), reviewNote:p.note||''});
+    return ex;
+  }
+}
+
+/* ============ DATA HELPERS ============ */
+const prevMonth = m => { let [y,mo] = m.split('-').map(Number); mo--; if (!mo) { mo = 12; y--; } return `${y}-${pad(mo)}`; };
+async function load() {
+  S.loading = true;
+  let list;
+  try { list = await api('list', {from:prevMonth(S.month)+'-01T00:00', to:S.month+'-31T23:59'}); } finally { S.loading = false; }
+  const both2 = (Array.isArray(list) ? list : []).map(e => {
+    const o = {...e};
+    ['id','datetime','ward','recorder','errorType','remarks','status','reviewedBy','reviewedAt','reviewNote','createdBy'].forEach(k => o[k] = String(o[k]==null?'':o[k]));
+    CATS.forEach(c => o[c.k] = +o[c.k] || 0);
+    CHECKS.forEach(c => o[c.k] = o[c.k]===true);
+    if (!['submitted','approved','returned'].includes(o.status)) o.status = 'submitted';
+    return o;
+  });
+  S.entries = both2.filter(e => e.datetime.slice(0,7) === S.month);
+  S.prev = both2.filter(e => e.datetime.slice(0,7) !== S.month);
+  S.entries.sort((a,b)=> a.datetime<b.datetime ? 1 : -1);
+}
+function newDraft() {
+  const d = {id:'', datetime:nowLocal(), ward:S.user.ward||WARDS[0], errorType:'', remarks:''};
+  CATS.forEach(c=>d[c.k]=''); CHECKS.forEach(c=>d[c.k]=null);
+  return d;
+}
+function aggregate(list, wards) {
+  const by = {};
+  wards.forEach(w => { by[w] = {ward:w, rounds:0, ok:0, total:0}; CATS.forEach(c=>by[w][c.k]=0); });
+  list.forEach(e => {
+    const w = by[e.ward]; if (!w) return;
+    w.rounds++; if (isOk(e)) w.ok++;
+    CATS.forEach(c => { w[c.k] += +e[c.k]||0; w.total += +e[c.k]||0; });
+  });
+  const rows = wards.map(w=>by[w]);
+  const tot = {ward:t('total'), rounds:0, ok:0, total:0}; CATS.forEach(c=>tot[c.k]=0);
+  rows.forEach(r => { tot.rounds+=r.rounds; tot.ok+=r.ok; tot.total+=r.total; CATS.forEach(c=>tot[c.k]+=r[c.k]); });
+  return {rows, tot};
+}
+const pct = (a,b) => b ? Math.round(a/b*100)+'%' : '-';
+const myWards = () => S.user.ward ? [S.user.ward] : WARDS;
+
+/* ============ VIEWS ============ */
+function render() {
+  document.documentElement.lang = S.lang;
+  const demoBar = API_URL ? '' : `<div class="demo"><div class="wrap">${t('demo')}</div></div>`;
+  const langBtn = `<button class="ghost" data-act="lang">${S.lang==='km'?'English':'ខ្មែរ'}</button>`;
+  const y = window.scrollY || 0;
+  let h = `<header class="top"><div class="wrap"><img src="${LOGO}" alt=""><h1>${t('app')}<small>${t('hosp')}</small></h1>${langBtn}${S.user?`<button class="ghost" data-act="logout">${t('signout')}</button>`:''}</div></header>${demoBar}`;
+  if (!S.user) { $('#app').innerHTML = h + loginView() + toast(); window.scrollTo(0, y); return; }
+  h += `<nav class="tabs"><div class="wrap">${TABS[S.user.role].map(k=>`<button data-act="tab" data-k="${k}" aria-current="${S.tab===k}">${t('t_'+k)}</button>`).join('')}</div></nav>`;
+  const v = {entry:entryView, entries:entriesView, dash:dashView, report:reportView}[S.tab]();
+  $('#app').innerHTML = h + `<main><div class="wrap">${v}</div></main>` + toast();
+  window.scrollTo(0, y);
+}
+const toast = () => S.msg ? `<div class="toast" role="status">${esc(S.msg)}</div>` : '';
+let toastTimer;
+function say(m) { S.msg = m; render(); clearTimeout(toastTimer); toastTimer = setTimeout(()=>{S.msg=''; const e=$('.toast'); if(e) e.remove();}, 3500); }
+
+function loginView() {
+  const groups = ['nurse','link','admin','viewer'].map(r => {
+    const us = S.users.filter(u=>u.role===r); if (!us.length) return '';
+    return `<optgroup label="${t('role_'+r)}">${us.map(u=>`<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('')}</optgroup>`;
+  }).join('');
+  if (!S.users.length) return `<div class="wrap"><div class="card login"><img src="${LOGO}" alt="">
+    <p>${S.usersFailed ? t('e_users') : t('loading')+'…'}</p>
+    ${S.usersFailed ? `<button class="btn full" data-act="reloadUsers">${t('retry')}</button>` : ''}</div></div>`;
+  return `<div class="wrap"><div class="card login"><img src="${LOGO}" alt="">
+    <h2>${t('signin')}</h2>
+    <label class="f" for="lu">${t('name')}</label><select id="lu">${groups}</select>
+    <label class="f" for="lp">${t('pin')}</label><input id="lp" type="password" inputmode="numeric" autocomplete="off" maxlength="12">
+    <button class="btn full" data-act="login">${t('signin')}</button>
+  </div></div>`;
+}
+
+function monthBar(extra='') {
+  return `<div class="row noprint" style="margin-bottom:12px">
+    <label class="row" style="gap:6px">${t('month')} <input type="month" data-ch="month" value="${S.month}" style="width:auto"></label>${extra}</div>`;
+}
+
+function entryView() {
+  const d = S.draft;
+  const wardField = S.user.role==='admin'
+    ? `<select data-f="ward">${WARDS.map(w=>`<option ${w===d.ward?'selected':''}>${esc(w)}</option>`).join('')}</select>`
+    : `<div><b>${esc(d.ward)}</b></div>`;
+  const anyNo = CHECKS.some(c=>d[c.k]===false);
+  return `<div class="card">
+    <h2>${d.id ? t('editing') : t('t_entry')}</h2>
+    <label class="f">${t('datetime')}</label><input type="datetime-local" data-f="datetime" value="${esc(d.datetime)}" max="${nowLocal().slice(0,10)}T23:59">
+    <label class="f">${t('ward')}</label>${wardField}
+    <label class="f">${t('recorder')}</label><div>${esc(d.recorder || S.user.name)}</div>
+
+    <h3>${t('weights')}</h3><div class="muted">${t('zero')}</div>
+    ${CATS.map(c=>`<div class="w"><i style="background:${c.c}"></i><label for="w_${c.k}">${L(c)}</label>
+      <input id="w_${c.k}" type="number" inputmode="decimal" min="0" max="999" step="0.1" data-f="${c.k}" value="${esc(d[c.k])}" placeholder="0.0"><span class="muted">${t('kg')}</span></div>`).join('')}
+    <div class="w-total"><span>${t('total')}</span><span><span id="tot">${f1(sumKg(d))}</span> ${t('kg')}</span></div>
+
+    <h3>${t('quality')}</h3>
+    ${CHECKS.map(c=>`<div class="chk"><span>${L(c)}</span><span class="seg">
+      <button class="y ${d[c.k]===true?'on':''}" data-act="chk" data-k="${c.k}" data-v="1" aria-pressed="${d[c.k]===true}">${t('yes')}</button>
+      <button class="n ${d[c.k]===false?'on':''}" data-act="chk" data-k="${c.k}" data-v="0" aria-pressed="${d[c.k]===false}">${t('no')}</button></span></div>`).join('')}
+    ${anyNo ? `<label class="f">${t('err')}</label><select data-f="errorType"><option value="">${t('choose')}</option>${ERRS.map(e=>`<option value="${e.k}" ${d.errorType===e.k?'selected':''}>${L(e)}</option>`).join('')}</select>` : ''}
+
+    <label class="f">${t('remarks')}</label><textarea data-f="remarks" maxlength="300">${esc(d.remarks)}</textarea>
+    <button class="btn full" data-act="save">${t('save')}</button>
+    ${d.id ? `<button class="btn line full" style="margin-top:8px" data-act="cancelEdit">${t('cancel')}</button>` : ''}
+  </div>`;
+}
+
+function entriesView() {
+  const canReview = S.user.role==='link' || S.user.role==='admin';
+  const filter = `<select data-ch="status" style="width:auto"><option value="">${t('all')}</option>${['submitted','returned','approved'].map(s=>`<option value="${s}" ${S.statusFilter===s?'selected':''}>${t(s)}</option>`).join('')}</select>`;
+  const list = S.entries.filter(e=>!S.statusFilter || e.status===S.statusFilter);
+  const cards = list.map(e => {
+    const mine = e.createdBy===S.user.id || S.user.role==='admin';
+    const errName = e.errorType ? L(ERRS.find(x=>x.k===e.errorType) || {en:e.errorType,km:e.errorType}) : '';
+    return `<div class="card">
+      <div class="entry-head"><div><b>${esc(e.datetime.replace('T',' '))}</b><br><span class="muted">${esc(e.ward)}, ${esc(e.recorder)}</span></div><span class="pill ${e.status}">${t(e.status)}</span></div>
+      <div class="kgs">${CATS.map(c=>`<span title="${esc(L(c))}"><i class="dot" style="background:${c.c}"></i>${f1(+e[c.k]||0)}</span>`).join('')}<span><b>${t('total')} ${f1(sumKg(e))} ${t('kg')}</b></span></div>
+      <div class="muted">${t('quality')}: ${isOk(e) ? t('yes') : `<span class="low">${t('no')}, ${esc(errName)}</span>`}${e.remarks?`<br>${esc(e.remarks)}`:''}</div>
+      ${e.status==='returned' && e.reviewNote ? `<div class="note">${esc(e.reviewNote)} <span class="muted">(${esc(e.reviewedBy)})</span></div>` : ''}
+      ${e.status==='approved' ? `<div class="muted">${t('reviewedBy')}: ${esc(e.reviewedBy)}</div>` : ''}
+      <div class="row" style="margin-top:10px">
+        ${canReview && e.status==='submitted' ? `<input type="text" id="note_${esc(e.id)}" maxlength="200" placeholder="${t('note')}" aria-label="${t('note')}" style="flex:1 1 100%">
+          <button class="btn" data-act="approve" data-id="${esc(e.id)}">${t('approve')}</button>
+          <button class="btn warn" data-act="return" data-id="${esc(e.id)}">${t('ret')}</button>` : ''}
+        ${mine && e.status!=='approved' && S.user.role!=='viewer' ? `<button class="btn line" data-act="edit" data-id="${esc(e.id)}">${t('edit')}</button>` : ''}
+      </div></div>`;
+  }).join('');
+  return `<h2>${t('t_entries')}</h2>${monthBar(filter)}${cards || `<div class="card muted">${S.loading ? t('loading')+'…' : t('empty')}</div>`}`;
+}
+
+function dashView() {
+  const live = S.entries.filter(e=>e.status!=='returned');
+  const {rows, tot} = aggregate(live, myWards());
+  const pending = S.entries.filter(e=>e.status==='submitted').length;
+  const today = nowLocal().slice(0,10);
+  const todayWards = new Set(S.entries.filter(e=>e.datetime.slice(0,10)===today).map(e=>e.ward)).size;
+  const max = Math.max(1, ...rows.map(r=>r.total));
+  const lastTile = (S.user.ward || S.month !== today.slice(0,7))
+    ? `<div class="tile"><b>${tot.rounds}</b><span>${t('d_rounds')}</span></div>`
+    : `<div class="tile"><b>${todayWards} / ${WARDS.length}</b><span>${t('d_today')}</span></div>`;
+  const errs = {}; live.forEach(e=>{ if(e.errorType) errs[e.errorType]=(errs[e.errorType]||0)+1; });
+  const errRows = Object.entries(errs).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`<tr><td>${esc(L(ERRS.find(x=>x.k===k)||{en:k,km:k}))}</td><td>${n}</td></tr>`).join('');
+  return `<h2>${t('t_dash')}</h2>${monthBar()}
+    <div class="tiles">
+      <div class="tile"><b>${f1(tot.total)}</b><span>${t('d_total')}</span></div>
+      <div class="tile"><b>${pct(tot.ok,tot.rounds)}</b><span>${t('d_comp')}</span></div>
+      <div class="tile"><b>${pending}</b><span>${t('d_pending')}</span></div>
+      ${lastTile}
+    </div>
+    <h3>${t('d_byward')}</h3>
+    <div class="card scroll"><table>
+      <thead><tr><th>${t('ward')}</th><th>${t('rounds')}</th><th style="text-align:left">${t('weights')}</th><th>${t('kg')}</th><th>${t('comp')}</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr><td>${esc(r.ward)}</td><td class="${r.rounds?'':'low'}">${r.rounds}</td>
+        <td><div class="bar" style="width:${Math.max(4,r.total/max*100)}%">${CATS.map(c=>`<i style="background:${c.c};width:${r.total?r[c.k]/r.total*100:0}%"></i>`).join('')}</div></td>
+        <td>${f1(r.total)}</td><td class="${r.rounds && r.ok/r.rounds<0.8?'low':''}">${pct(r.ok,r.rounds)}</td></tr>`).join('')}</tbody>
+    </table>
+    <div class="legend">${CATS.map(c=>`<span><i class="dot" style="background:${c.c}"></i>${L(c)}</span>`).join('')}</div></div>
+    <h3>${t('d_errors')}</h3>
+    <div class="card">${errRows ? `<table><tbody>${errRows}</tbody></table>` : `<span class="muted">${t('d_noerr')}</span>`}</div>
+    <p class="muted">${t('d_scope')}</p>`;
+}
+
+/* ---------- Monthly report: always in Khmer, approved records only ---------- */
+const wk = w => WARD_KM[w] || w;
+const kn = v => String(v).replace(/\d/g, d => '០១២៣៤៥៦៧៨៩'[d]);
+const monthKm = m => { const [y,mo] = m.split('-').map(Number); return `ខែ${MONTH_KM[mo-1] || ''} ឆ្នាំ${kn(y)}`; };
+const errKm = k => (ERRS.find(x=>x.k===k) || {km:k}).km;
+const STATUS_KM = {submitted:'រង់ចាំការអនុម័ត', approved:'បានអនុម័ត', returned:'ត្រឡប់ឲ្យកែ'};
+
+function buildReport() {
+  const wards = S.repWard ? [S.repWard] : myWards();
+  const all = S.entries.filter(e => wards.includes(e.ward));
+  const appr = all.filter(e => e.status==='approved');
+  const prevA = (S.prev||[]).filter(e => wards.includes(e.ward) && e.status==='approved');
+  const {rows, tot} = aggregate(appr, wards);
+  const pv = aggregate(prevA, wards).tot;
+  const [y, mo] = S.month.split('-').map(Number);
+  const dim = new Date(y, mo, 0).getDate();
+  const days = S.month === nowLocal().slice(0,7) ? new Date().getDate() : dim;
+  const kg = n => f1(n);
+  const share = (a,b) => b ? f1(a/b*100) : '-';
+  const ratio = r => r.rounds ? r.ok/r.rounds : null;
+  const rate = r => r.rounds ? f1(r.ok/r.rounds*100)+'%' : '-';
+  const grade = r => { const v = ratio(r); return v==null ? '-' : v>=0.9 ? 'ល្អ' : v>=0.8 ? 'មធ្យម' : 'ត្រូវកែលម្អ'; };
+  const cnt = (list, st) => list.filter(e=>e.status===st).length;
+  const hazardous = tot.total - tot.general;
+  const reporting = rows.filter(r=>r.rounds).length;
+  const single = wards.length === 1;
+  const sections = [];
+
+  // 1. Summary
+  sections.push({cls:'kv', title:'១. សង្ខេបលទ្ធផលសំខាន់ៗ', head:['សូចនាករ','លទ្ធផល'], rows:[
+    ...(single ? [] : [['ចំនួនផ្នែកដែលមានកំណត់ត្រាបានអនុម័ត', `${reporting} / ${wards.length} ផ្នែក`]]),
+    ['ចំនួនជុំប្រមូលសំណល់ (បានអនុម័ត)', `${tot.rounds} ជុំ`],
+    ['បរិមាណសំណល់សរុប', `${kg(tot.total)} គ.ក្រ`],
+    [`បរិមាណសំណល់មធ្យមក្នុងមួយថ្ងៃ (គិតលើ ${days} ថ្ងៃ)`, `${kg(tot.total/days)} គ.ក្រ`],
+    ...CATS.map(c => [c.km, `${kg(tot[c.k])} គ.ក្រ` + (tot.total ? ` (${share(tot[c.k],tot.total)}%)` : '')]),
+    ['សំណល់គ្រោះថ្នាក់សរុប (មិនរាប់សំណល់ទូទៅ)', `${kg(hazardous)} គ.ក្រ` + (tot.total ? ` (${share(hazardous,tot.total)}%)` : '')],
+    ['អត្រាអនុលោមនៃការញែកសំណល់', rate(tot) + (tot.rounds ? ` (${tot.ok} / ${tot.rounds} ជុំ)` : '')],
+    ['ស្ថានភាពកំណត់ត្រាក្នុងខែ', `បានអនុម័ត ${cnt(all,'approved')}, រង់ចាំការអនុម័ត ${cnt(all,'submitted')}, ត្រឡប់ឲ្យកែ ${cnt(all,'returned')}`]
+  ]});
+
+  // 2. Waste by ward and category
+  const wasteLine = r => [r.rounds, ...CATS.map(c=>kg(r[c.k])), kg(r.total), share(r.total, tot.total)];
+  sections.push({title:'២. បរិមាណសំណល់តាមផ្នែក និងតាមប្រភេទ (គ.ក្រ)',
+    head:['ផ្នែក','ចំនួនជុំ', ...CATS.map(c=>c.km), 'សរុប','ចំណែក (%)'],
+    rows: rows.map(r => [wk(r.ward), ...wasteLine(r)]),
+    foot: single ? null : ['សរុប', ...wasteLine(tot)]});
+
+  // 3. Compliance by ward, with failures per check
+  const fails = {}; wards.forEach(w => fails[w] = CHECKS.map(()=>0));
+  appr.forEach(e => CHECKS.forEach((c,i) => { if (!e[c.k]) fails[e.ward][i]++; }));
+  const failTot = CHECKS.map((c,i) => wards.reduce((a,w)=>a+fails[w][i], 0));
+  sections.push({title:'៣. អត្រាអនុលោមនៃការញែកសំណល់តាមផ្នែក',
+    head:['ផ្នែក','ជុំសរុប','ជុំអនុលោម','អត្រាអនុលោម','ខុសពណ៌ធុង ឬថង់ (ជុំ)','លាយសំណល់ខុសប្រភេទ (ជុំ)','ប្រអប់សុវត្ថិភាពពេញលើស ៣/៤ (ជុំ)','វាយតម្លៃ'],
+    rows: rows.map(r => [wk(r.ward), r.rounds, r.ok, rate(r), ...fails[r.ward], grade(r)]),
+    foot: single ? null : ['សរុប', tot.rounds, tot.ok, rate(tot), ...failTot, grade(tot)],
+    note:'ជុំអនុលោម គឺជុំដែលចំណុចត្រួតពិនិត្យទាំង ៣ ត្រឹមត្រូវ។ វាយតម្លៃ៖ ល្អ (៩០% ឡើង), មធ្យម (៨០% ដល់ក្រោម ៩០%), ត្រូវកែលម្អ (ក្រោម ៨០%)។'});
+
+  // 4. Error types
+  const errs = {}; appr.forEach(e => { if (e.errorType) errs[e.errorType] = (errs[e.errorType]||0)+1; });
+  const errList = Object.entries(errs).sort((a,b)=>b[1]-a[1]);
+  const errTot = errList.reduce((a,x)=>a+x[1], 0);
+  sections.push({title:'៤. ប្រភេទកំហុសនៃការញែកសំណល់', head:['ប្រភេទកំហុស','ចំនួនដង','ភាគរយ (%)'],
+    rows: errList.map(([k,n]) => [errKm(k), n, share(n, errTot)]),
+    foot: errList.length > 1 ? ['សរុប', errTot, '100.0'] : null,
+    empty:'មិនមានកំហុសនៃការញែកសំណល់ត្រូវបានកត់ត្រាក្នុងខែនេះទេ។'});
+
+  // 5. Reporting completeness (records of every status)
+  const comp = wards.map(w => {
+    const l = all.filter(e=>e.ward===w);
+    const d = new Set(l.map(e=>e.datetime.slice(0,10))).size;
+    return {w, d, n:l.length, a:cnt(l,'approved'), s:cnt(l,'submitted'), r:cnt(l,'returned')};
+  });
+  sections.push({title:'៥. ភាពពេញលេញនៃការកត់ត្រា និងការអនុម័ត',
+    head:['ផ្នែក','ចំនួនថ្ងៃដែលមានកំណត់ត្រា',`ភាគរយនៃថ្ងៃ (លើ ${days} ថ្ងៃ)`,'កំណត់ត្រាសរុប','បានអនុម័ត','រង់ចាំការអនុម័ត','ត្រឡប់ឲ្យកែ'],
+    rows: comp.map(c => [wk(c.w), c.d, share(c.d, days)+'%', c.n, c.a, c.s, c.r]),
+    foot: single ? null : ['សរុប', '', '', all.length, cnt(all,'approved'), cnt(all,'submitted'), cnt(all,'returned')],
+    note:'តារាងនេះរាប់កំណត់ត្រាគ្រប់ស្ថានភាព។ តារាងផ្សេងទៀតរាប់តែកំណត់ត្រាដែលបានអនុម័តប៉ុណ្ណោះ។'});
+
+  // 6. Weekly trend
+  const weeks = [[1,7],[8,14],[15,21],[22,28],[29,dim]].filter(w => w[0] <= dim);
+  sections.push({title:'៦. និន្នាការប្រចាំសប្តាហ៍', head:['រយៈពេល','ចំនួនជុំ','សំណល់សរុប (គ.ក្រ)','សំណល់ឆ្លងរោគ (គ.ក្រ)','សំណល់មុតស្រួច (គ.ក្រ)','អត្រាអនុលោម'],
+    rows: weeks.map(([a,b]) => {
+      const t2 = aggregate(appr.filter(e => { const d = +e.datetime.slice(8,10); return d>=a && d<=b; }), wards).tot;
+      return [a===b ? `ថ្ងៃទី ${a}` : `ថ្ងៃទី ${a} ដល់ ${b}`, t2.rounds, kg(t2.total), kg(t2.infectious), kg(t2.sharps), rate(t2)];
+    })});
+
+  // 7. Comparison with the previous month
+  const chg = (a,b) => b ? ((a-b)/b*100 > 0 ? '+' : '') + f1((a-b)/b*100) + '%' : '-';
+  const rp = ratio(pv), rc = ratio(tot);
+  const ppDiff = (rp==null || rc==null) ? '-' : ((rc-rp) > 0 ? '+' : '') + f1((rc-rp)*100) + ' ពិន្ទុភាគរយ';
+  sections.push({title:'៧. ការប្រៀបធៀបជាមួយខែមុន', head:['សូចនាករ', monthKm(prevMonth(S.month)), monthKm(S.month), 'បម្រែបម្រួល'],
+    rows:[
+      ['ចំនួនជុំប្រមូលសំណល់', pv.rounds, tot.rounds, chg(tot.rounds, pv.rounds)],
+      ['បរិមាណសំណល់សរុប (គ.ក្រ)', kg(pv.total), kg(tot.total), chg(tot.total, pv.total)],
+      ...CATS.map(c => [`${c.km} (គ.ក្រ)`, kg(pv[c.k]), kg(tot[c.k]), chg(tot[c.k], pv[c.k])]),
+      ['អត្រាអនុលោមនៃការញែកសំណល់', rate(pv), rate(tot), ppDiff]
+    ],
+    note: pv.rounds ? '' : 'មិនមានកំណត់ត្រាដែលបានអនុម័តសម្រាប់ខែមុនទេ។'});
+
+  // 8. Findings written from the numbers
+  const find = [];
+  if (!tot.rounds) find.push('មិនមានកំណត់ត្រាដែលបានអនុម័តក្នុងខែនេះទេ។');
+  else {
+    find.push(`អត្រាអនុលោមនៃការញែកសំណល់${single ? '' : 'ទូទាំងមន្ទីរពេទ្យ'}គឺ ${rate(tot)} (វាយតម្លៃ៖ ${grade(tot)})។`);
+    if (!single) {
+      const top = rows.slice().sort((a,b)=>b.total-a.total)[0];
+      find.push(`ផ្នែកដែលមានបរិមាណសំណល់ច្រើនជាងគេ៖ ${wk(top.ward)} (${kg(top.total)} គ.ក្រ ស្មើនឹង ${share(top.total,tot.total)}% នៃសំណល់សរុប)។`);
+      const low = rows.filter(r => r.rounds && ratio(r) < 0.8);
+      find.push(low.length ? `ផ្នែកដែលមានអត្រាអនុលោមក្រោម ៨០% ហើយត្រូវការការកែលម្អ៖ ${low.map(r=>`${wk(r.ward)} (${rate(r)})`).join(', ')}។`
+                           : 'គ្មានផ្នែកណាមានអត្រាអនុលោមក្រោម ៨០% ទេ។');
+      const none = rows.filter(r => !r.rounds);
+      if (none.length) find.push(`ផ្នែកដែលមិនមានកំណត់ត្រាបានអនុម័តក្នុងខែនេះ៖ ${none.map(r=>wk(r.ward)).join(', ')}។`);
+    }
+    if (errList.length) find.push(`កំហុសដែលកើតញឹកញាប់ជាងគេ៖ ${errKm(errList[0][0])} (${errList[0][1]} ដង)។`);
+    if (tot.total) find.push(`សំណល់គ្រោះថ្នាក់ (មិនរាប់សំណល់ទូទៅ) មានចំនួន ${share(hazardous,tot.total)}% នៃសំណល់សរុប។`);
+    if (pv.total) find.push(`បរិមាណសំណល់សរុប${tot.total >= pv.total ? 'កើនឡើង' : 'ថយចុះ'} ${f1(Math.abs((tot.total-pv.total)/pv.total*100))}% ធៀបនឹងខែមុន។`);
+  }
+  const waiting = cnt(all,'submitted'), back = cnt(all,'returned');
+  if (waiting || back) find.push(`នៅមានកំណត់ត្រា ${waiting} កំពុងរង់ចាំការអនុម័ត និង ${back} ត្រូវបានត្រឡប់ឲ្យកែ ដែលមិនទាន់រាប់បញ្ចូលក្នុងរបាយការណ៍នេះទេ។`);
+
+  return {wards, single, sections, find, all,
+    scope: single ? wk(wards[0]) : 'គ្រប់ផ្នែកទាំងអស់',
+    findTitle:'៨. លទ្ធផលរកឃើញសំខាន់ៗ',
+    planTitle:'៩. បញ្ហាប្រឈម និងផែនការសកម្មភាពកែលម្អ',
+    planHead:['ល.រ','បញ្ហាដែលបានរកឃើញ','សកម្មភាពកែលម្អ','អ្នកទទួលខុសត្រូវ','កាលកំណត់']};
+}
+
+function reportView() {
+  const R = buildReport(), H = REPORT_HEAD;
+  const wardSel = S.user.ward ? '' : `<select data-ch="repWard" style="width:auto"><option value="">${t('allwards')}</option>${WARDS.map(w=>`<option value="${esc(w)}" ${w===S.repWard?'selected':''}>${esc(S.lang==='km' ? wk(w) : w)}</option>`).join('')}</select>`;
+  const row = (r, tag) => `<tr>${r.map(c=>`<${tag}>${esc(c)}</${tag}>`).join('')}</tr>`;
+  const sec = s => `<section><h3>${esc(s.title)}</h3>${
+    !s.rows.length && s.empty ? `<p>${esc(s.empty)}</p>` :
+    `<div class="scroll"><table class="${s.cls||''}"><thead>${row(s.head,'th')}</thead><tbody>${s.rows.map(r=>row(r,'td')).join('')}</tbody>${s.foot ? `<tfoot>${row(s.foot,'td')}</tfoot>` : ''}</table></div>`
+    }${s.note ? `<p class="muted">${esc(s.note)}</p>` : ''}</section>`;
+  return `${monthBar(wardSel)}
+    <div class="card rep" id="report" lang="km">
+      <div class="nat">${H.nation}<br>${H.motto}</div>
+      <div class="inst"><img src="${LOGO}" alt=""><div>${H.inst.join('<br>')}</div></div>
+      <div class="ttl"><b>${H.title}</b>ប្រចាំ${monthKm(S.month)}<br>វិសាលភាព៖ ${esc(R.scope)}</div>
+      ${R.sections.map(sec).join('')}
+      <section><h3>${R.findTitle}</h3><ul>${R.find.map(f=>`<li>${esc(f)}</li>`).join('')}</ul></section>
+      <section><h3>${R.planTitle}</h3><div class="scroll"><table class="plan"><thead>${row(R.planHead,'th')}</thead>
+        <tbody>${[1,2,3,4].map(i=>row([kn(i),'','','',''],'td')).join('')}</tbody></table></div></section>
+      <section><div class="date">${H.place} ថ្ងៃទី........ ខែ............ ឆ្នាំ២០......</div>
+      <div class="sign">${H.sign.map(x=>`<div><b>${x[0]}</b><br>${x[1]}</div>`).join('')}</div></section>
+    </div>
+    <div class="row noprint" style="margin-top:14px">
+      <button class="btn" data-act="xlsx">${t('xlsx')}</button>
+      <button class="btn line" data-act="print">${t('print')}</button>
+    </div>`;
+}
+
+function exportXlsx() {
+  const R = buildReport(), H = REPORT_HEAD;
+  const num = v => (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v)) ? +v : v;   // real numbers in Excel
+  const aoa = [[H.nation], [H.motto], ...H.inst.map(x=>[x]), [], [H.title], ['ប្រចាំ' + monthKm(S.month)], ['វិសាលភាព៖ ' + R.scope], []];
+  R.sections.forEach(s => {
+    aoa.push([s.title]);
+    if (!s.rows.length && s.empty) aoa.push([s.empty]);
+    else { aoa.push(s.head); s.rows.forEach(r => aoa.push(r.map(num))); if (s.foot) aoa.push(s.foot.map(num)); }
+    if (s.note) aoa.push([s.note]);
+    aoa.push([]);
+  });
+  aoa.push([R.findTitle]); R.find.forEach(f => aoa.push([f])); aoa.push([]);
+  aoa.push([R.planTitle]); aoa.push(R.planHead); [1,2,3,4].forEach(i => aoa.push([i]));
+  const yn = v => v ? 'បាទ/ចាស' : 'ទេ';
+  const rawHead = ['កាលបរិច្ឆេទ និងម៉ោង','ផ្នែក','អ្នកកត់ត្រា', ...CATS.map(c=>c.km+' (គ.ក្រ)'), 'សរុប (គ.ក្រ)', ...CHECKS.map(c=>c.km), 'ប្រភេទកំហុស','កំណត់សម្គាល់','ស្ថានភាព','ពិនិត្យដោយ','កាលបរិច្ឆេទពិនិត្យ','កំណត់ចំណាំរបស់អ្នកពិនិត្យ'];
+  const raw = [rawHead, ...R.all.slice().reverse().map(e => [
+    e.datetime.replace('T',' '), wk(e.ward), e.recorder, ...CATS.map(c=>+e[c.k]||0), +f1(sumKg(e)), ...CHECKS.map(c=>yn(e[c.k])),
+    e.errorType ? errKm(e.errorType) : '', e.remarks, STATUS_KM[e.status] || e.status, e.reviewedBy, e.reviewedAt.replace('T',' '), e.reviewNote])];
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet(aoa); ws1['!cols'] = [{wch:44}, ...Array(9).fill({wch:18})];
+  const ws2 = XLSX.utils.aoa_to_sheet(raw); ws2['!cols'] = rawHead.map((_,i)=>({wch: i<3 ? 24 : 18}));
+  XLSX.utils.book_append_sheet(wb, ws1, 'របាយការណ៍');
+  XLSX.utils.book_append_sheet(wb, ws2, 'កំណត់ត្រា');
+  XLSX.writeFile(wb, `KCPH-waste-report-${S.month}${S.repWard ? '-' + S.repWard.replace(/\s+/g,'_') : ''}.xlsx`);
+}
+
+/* ============ ACTIONS ============ */
+let busy = false;
+async function run(fn) {
+  if (busy) return;
+  busy = true; document.body.classList.add('busy');
+  try { await fn(); } catch (err) { say((err && err.message) || String(err)); }
+  finally { busy = false; document.body.classList.remove('busy'); }
+}
+async function loadUsers() {
+  S.usersFailed = false; render();
+  try { const u = await api('users'); S.users = Array.isArray(u) ? u : []; if (!S.users.length) S.usersFailed = true; }
+  catch (err) { S.users = []; S.usersFailed = true; render(); throw err; }
+  render();
+  try { const last = localStorage.getItem(REMEMBER); const sel = $('#lu'); if (last && sel && S.users.some(u=>u.id===last)) sel.value = last; } catch (e) {}
+}
+
+const ACT = {
+  lang() { S.lang = S.lang==='km' ? 'en' : 'km'; render(); },
+  async login() {
+    S.cred = {id:$('#lu').value, pin:$('#lp').value.trim()};
+    if (!S.cred.pin) throw new Error(t('e_pin'));
+    let u;
+    try { u = await api('login'); } catch (err) { S.cred = null; throw err; }
+    const wardOk = (u.role==='nurse' || u.role==='link') ? WARDS.includes(u.ward) : true;
+    if (!u || !TABS[u.role] || !wardOk) { S.cred = null; throw new Error(t('e_acct')); }
+    if (u.role==='admin' || u.role==='viewer') u.ward = '';
+    S.user = u; S.tab = TABS[u.role][0]; S.draft = newDraft(); S.repWard=''; S.statusFilter=''; S.entries = [];
+    S.month = nowLocal().slice(0,7);
+    try { localStorage.setItem(REMEMBER, u.id); } catch (e) {}
+    render();
+    await load(); render();
+  },
+  logout() { S.user=null; S.cred=null; S.entries=[]; S.prev=[]; S.draft=null; render(); },
+  async reloadUsers() { await loadUsers(); },
+  tab(el) { S.tab = el.dataset.k; render(); window.scrollTo(0,0); },
+  chk(el) { S.draft[el.dataset.k] = el.dataset.v==='1'; if (!CHECKS.some(c=>S.draft[c.k]===false)) S.draft.errorType=''; render(); },
+  async save() {
+    const d = S.draft;
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(d.datetime||'')) return say(t('v_date'));
+    d.datetime = d.datetime.slice(0,16);
+    if (d.datetime > nowLocal()) return say(t('v_future'));
+    if (CATS.some(c => d[c.k]==='' || isNaN(+d[c.k]) || +d[c.k]<0)) return say(t('v_weights'));
+    if (CATS.some(c => +d[c.k] > 999)) return say(t('v_max'));
+    if (CHECKS.some(c => d[c.k]!==true && d[c.k]!==false)) return say(t('v_checks'));
+    if (CHECKS.some(c => d[c.k]===false) && !d.errorType) return say(t('v_err'));
+    const payload = {...d}; CATS.forEach(c=>payload[c.k]=+d[c.k]);
+    await api('save', {data:JSON.stringify(payload)});
+    S.month = d.datetime.slice(0,7); S.statusFilter = '';
+    S.draft = newDraft(); S.tab = 'entries';
+    say(t('saved'));
+    await load(); render();
+  },
+  cancelEdit() { S.draft = newDraft(); S.tab='entries'; render(); },
+  edit(el) { const e = S.entries.find(x=>x.id===el.dataset.id); if (!e) return; S.draft = {...e}; S.tab='entry'; render(); window.scrollTo(0,0); },
+  async approve(el) { await review(el.dataset.id, 'approved'); },
+  async return(el) { await review(el.dataset.id, 'returned'); },
+  xlsx() { if (typeof XLSX === 'undefined') throw new Error(t('e_xlsx')); exportXlsx(); },
+  print() { window.print(); }
+};
+async function review(id, status) {
+  const note = ($('#note_'+CSS.escape(id))||{}).value || '';
+  if (status==='returned' && !note.trim()) return say(t('v_note'));
+  await api('review', {entryId:id, status, note:note.trim()});
+  say(t(status));
+  await load(); render();
+}
+
+document.addEventListener('click', ev => {
+  const el = ev.target.closest('[data-act]'); if (!el) return;
+  const fn = ACT[el.dataset.act]; if (fn) run(() => fn(el));
+});
+function onField(ev) {
+  const f = ev.target.dataset && ev.target.dataset.f; if (!f || !S.draft) return;
+  S.draft[f] = ev.target.value;
+  const tot = $('#tot'); if (tot) tot.textContent = f1(sumKg(S.draft));
+}
+document.addEventListener('input', onField);
+document.addEventListener('change', onField);
+document.addEventListener('change', ev => {
+  const c = ev.target.dataset && ev.target.dataset.ch; if (!c || !S.user) return;
+  if (c==='month' && ev.target.value) { const m = ev.target.value; run(async()=>{ S.month = m; S.entries = []; S.prev = []; await load(); render(); }); }
+  if (c==='status') { S.statusFilter = ev.target.value; render(); }
+  if (c==='repWard') { S.repWard = ev.target.value; render(); }
+});
+document.addEventListener('keydown', ev => { if (ev.key==='Enter' && ev.target.id==='lp') run(()=>ACT.login()); });
+
+window.addEventListener('error', ev => { try { say(ev.message || 'Error'); } catch (e) {} });
+run(loadUsers);
+</script>
+</body>
+</html>
